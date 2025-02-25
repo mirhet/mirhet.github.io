@@ -389,6 +389,12 @@
         const particleGroups = [];
         let clock = new THREE.Clock();
         
+        // Add these variables at the beginning of your script (with the other variables)
+        let boxCount = 0;
+        const MAX_BOXES = 10000; // Maximum number of boxes to maintain performance
+        let boxSpawnInterval;
+        let groundPlane;
+        
         // Initialize Three.js scene
         function init() {
             // Setup scene
@@ -516,69 +522,76 @@
         }
         
         function createNeonObjects() {
-            // Create physics-enabled neon cubes
-            const colors = [0xbc13fe, 0x0ff0fc, 0xff3864];
+            // Instead of creating initial boxes, just set up the spawner
+            boxSpawnInterval = setInterval(spawnNewBox, 200); // Spawn a new box every 200ms
             
-            for (let i = 0; i < 20; i++) {
-                const size = Math.random() * 2 + 1;
-                
-                // Three.js geometry
-                const geometry = new THREE.BoxGeometry(size, size, size);
-                
-                // Create neon glow material
-                const coreMaterial = new THREE.MeshStandardMaterial({
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    emissive: colors[Math.floor(Math.random() * colors.length)],
-                    emissiveIntensity: 0.5,
-                    metalness: 0.8,
-                    roughness: 0.2
-                });
-                
-                const cube = new THREE.Mesh(geometry, coreMaterial);
-                
-                // Position randomly
-                const x = Math.random() * 30 - 15;
-                const y = Math.random() * 20 + 10;
-                const z = Math.random() * 30 - 15;
-                
-                cube.position.set(x, y, z);
-                scene.add(cube);
-                
-                // Create physics body
-                const shape = new CANNON.Box(new CANNON.Vec3(size/2, size/2, size/2));
-                const body = new CANNON.Body({
-                    mass: 1,
-                    shape: shape,
-                    position: new CANNON.Vec3(x, y, z)
-                });
-                
-                // Add some initial velocity and rotation
-                body.angularVelocity.set(
-                    Math.random() * 2 - 1,
-                    Math.random() * 2 - 1,
-                    Math.random() * 2 - 1
-                );
-                
-                body.velocity.set(
-                    Math.random() * 5 - 2.5,
-                    Math.random() * 5,
-                    Math.random() * 5 - 2.5
-                );
-                
-                world.addBody(body);
-                
-                // Store reference to both visual and physics objects
-                neonObjects.push({
-                    mesh: cube,
-                    body: body,
-                    initialColor: colors[Math.floor(Math.random() * colors.length)]
-                });
-            }
+            // Create ground plane detector for removal logic
+            groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -4.9);
+        }
+        
+        function spawnNewBox() {
+            // If we've reached the maximum, don't spawn more
+            if (boxCount >= MAX_BOXES) return;
+            
+            const colors = [0xbc13fe, 0x0ff0fc, 0xff3864];
+            const size = Math.random() * 1.5 + 0.5; // Smaller boxes for better performance
+            
+            // Three.js geometry
+            const geometry = new THREE.BoxGeometry(size, size, size);
+            
+            // Create neon glow material
+            const coreMaterial = new THREE.MeshStandardMaterial({
+                color: colors[Math.floor(Math.random() * colors.length)],
+                emissive: colors[Math.floor(Math.random() * colors.length)],
+                emissiveIntensity: 0.5,
+                metalness: 0.8,
+                roughness: 0.2
+            });
+            
+            const cube = new THREE.Mesh(geometry, coreMaterial);
+            
+            // Position randomly above the scene
+            const x = Math.random() * 45 - 15;
+            const y = 30 + Math.random() * 10; // Start high above
+            const z = Math.random() * 45 - 15;
+            
+            cube.position.set(x, y, z);
+            scene.add(cube);
+            
+            // Create physics body
+            const shape = new CANNON.Box(new CANNON.Vec3(size/2, size/2, size/2));
+            const body = new CANNON.Body({
+                mass: 1 + Math.random() * 3, // Random mass for varied physics
+                shape: shape,
+                position: new CANNON.Vec3(x, y, z)
+            });
+            
+            // Add some initial angular velocity for spin
+            body.angularVelocity.set(
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1
+            );
+            
+            world.addBody(body);
+            
+            // Store reference with additional metadata
+            const neonObject = {
+                mesh: cube,
+                body: body,
+                initialColor: colors[Math.floor(Math.random() * colors.length)],
+                createdAt: Date.now(),
+                onGround: false,
+                groundTime: 0
+            };
+            
+            neonObjects.push(neonObject);
+            boxCount++;
         }
         
         function createParticles() {
             // Add flowing particle effects
-            const particleCount = 200;
+            const particleCount = 100;
             
             // Create particles flowing in a grid pattern
             const particlesGeometry = new THREE.BufferGeometry();
@@ -618,7 +631,7 @@
             particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
             
             const particleMaterial = new THREE.PointsMaterial({
-                size: 0.4,
+                size: 0.1,
                 vertexColors: true,
                 transparent: true,
                 opacity: 0.7,
@@ -649,16 +662,42 @@
             const delta = Math.min(clock.getDelta(), 0.1);
             world.step(delta);
             
-            // Update physics objects
-            neonObjects.forEach(obj => {
+            const currentTime = Date.now();
+            
+            // Update physics objects and check for removal
+            for (let i = neonObjects.length - 1; i >= 0; i--) {
+                const obj = neonObjects[i];
+                
+                // Update position and rotation
                 obj.mesh.position.copy(obj.body.position);
                 obj.mesh.quaternion.copy(obj.body.quaternion);
                 
                 // Pulse effect
-                const time = Date.now() * 0.001;
-                const intensity = 0.5 + Math.sin(time * 2 + neonObjects.indexOf(obj)) * 0.25;
+                const time = currentTime * 0.001;
+                const intensity = 0.5 + Math.sin(time * 2 + i) * 0.25;
                 obj.mesh.material.emissiveIntensity = intensity;
-            });
+                
+                // Check if box is on ground
+                if (!obj.onGround && obj.body.position.y < -4 && Math.abs(obj.body.velocity.y) < 0.1) {
+                    obj.onGround = true;
+                    obj.groundTime = currentTime;
+                }
+                
+                // Remove boxes that have been on ground for too long
+                if (obj.onGround && currentTime - obj.groundTime > 60000) {
+                    // Remove from scene and physics world
+                    scene.remove(obj.mesh);
+                    world.removeBody(obj.body);
+                    
+                    // Dispose of geometry and material to free memory
+                    obj.mesh.geometry.dispose();
+                    obj.mesh.material.dispose();
+                    
+                    // Remove from array
+                    neonObjects.splice(i, 1);
+                    boxCount--;
+                }
+            }
             
             // Update particles
             particleGroups.forEach(group => {
@@ -694,7 +733,7 @@
             });
             
             // Slowly rotate the camera around
-            const time = Date.now() * 0.0005;
+            const time = currentTime * 0.0005;
             camera.position.x = Math.cos(time * 0.3) * 35;
             camera.position.z = Math.sin(time * 0.3) * 35;
             camera.lookAt(0, 0, 0);
@@ -702,7 +741,7 @@
             // Update grid lines pulse
             gridLines.forEach((line, index) => {
                 if (line.material) {
-                    const pulseTime = Date.now() * 0.001 + index * 0.1;
+                    const pulseTime = currentTime * 0.001 + index * 0.1;
                     const pulseValue = Math.sin(pulseTime) * 0.1 + 0.2;
                     line.material.opacity = pulseValue;
                 }
@@ -710,6 +749,13 @@
             
             renderer.render(scene, camera);
         }
+        
+        // Add a cleanup function for when the page is unloaded
+        window.addEventListener('beforeunload', function() {
+            if (boxSpawnInterval) {
+                clearInterval(boxSpawnInterval);
+            }
+        });
         
         // Initialize the 3D scene
         init();
