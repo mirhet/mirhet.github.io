@@ -76,7 +76,7 @@
                         0 0 60px rgba(15, 240, 252, 0.3);
         }
         
-        /* Typography */
+        /* Typography - Simplified approach */
         h1 {
             font-family: 'Orbitron', sans-serif;
             font-size: 2rem;
@@ -84,15 +84,10 @@
             position: relative;
             text-transform: uppercase;
             letter-spacing: 3px;
+            /* Use a solid color instead of gradient */
+            color: var(--neon-blue);
             text-shadow: 0 0 10px var(--neon-purple),
                          0 0 20px var(--neon-blue);
-            color: var(--neon-blue);
-            background: linear-gradient(45deg, var(--neon-purple), var(--neon-blue));
-            -webkit-background-clip: text;
-            -moz-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-fill-color: transparent;
             opacity: 0;
             animation: pulseText 3s ease-in-out infinite, fadeIn 1s ease forwards;
         }
@@ -339,7 +334,7 @@
     
     <div class="content">
         <div class="card">
-            <h1>Mirhet Julardzija</h1>
+            <h1 data-text="Mirhet Julardzija">Mirhet Julardzija</h1>
             <h2>Builder of things</h2>
 
             <p></p>Mirhet is passionate about crafting elegant digital solutions.</p>
