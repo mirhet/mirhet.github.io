@@ -86,10 +86,13 @@
             letter-spacing: 3px;
             text-shadow: 0 0 10px var(--neon-purple),
                          0 0 20px var(--neon-blue);
-            color: transparent;
+            color: var(--neon-blue);
             background: linear-gradient(45deg, var(--neon-purple), var(--neon-blue));
             -webkit-background-clip: text;
+            -moz-background-clip: text;
             background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-fill-color: transparent;
             opacity: 0;
             animation: pulseText 3s ease-in-out infinite, fadeIn 1s ease forwards;
         }
